@@ -9,7 +9,7 @@ import androidx.navigation.compose.*
 import com.example.audiorecordingapp.presentaion.recorder_screen.RecorderVM
 import com.example.audiorecordingapp.presentaion.recording_listing.RecordListingScreen
 import com.example.audiorecordingapp.presentaion.recording_listing.RecordingListingVM
-import com.example.audiorecordingapp.ui.RecordingScreen
+import com.example.audiorecordingapp.presentaion.recorder_screen.RecordingScreen
 
 sealed class Screen(val route: String) {
     object Listing : Screen("recordings")
