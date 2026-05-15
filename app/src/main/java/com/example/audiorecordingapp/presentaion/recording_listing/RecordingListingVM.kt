@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.audiorecordingapp.data.local.entity.RecordingEntity
 import com.example.audiorecordingapp.data.local.repository.RecordingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,10 +35,6 @@ class RecordingListingVM @Inject constructor(
                     _recordings.value = list
                 }
         }
-    }
-
-    fun getRecordingById(id: Long): Flow<RecordingEntity?> {
-        return recordingRepository.getRecordingById(id)
     }
 
     fun playRecording(rec: RecordingEntity) {
