@@ -1,7 +1,6 @@
 package com.example.audiorecordingapp.ui
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.audiorecordingapp.MainActivity
 import com.example.audiorecordingapp.R
 import com.example.audiorecordingapp.data.local.entity.RecordingEntity
 import com.example.audiorecordingapp.presentaion.recorder_screen.RecorderVM
+import com.example.audiorecordingapp.ui.theme.AudioRecordingAppTheme
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,19 +45,14 @@ fun RecordingScreen(
     var isRecording by remember { mutableStateOf(false) }
     var currentPath by remember { mutableStateOf("") }
     var recordStartTime by remember { mutableStateOf(0L) }
-
-    // 1) keep track of denials
     var denyCount by rememberSaveable { mutableStateOf(0) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    // 2) launcher for runtime permission
     val micLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            // reset counter
             denyCount = 0
-            // start recording now permission is available
             startRecording(ctx, recordingsRoot) { path, startTime ->
                 currentPath = path
                 recordStartTime = startTime
@@ -72,38 +68,78 @@ fun RecordingScreen(
         }
     }
 
-    // 3) Dialog to send user to Settings after 3 denies
     if (showSettingsDialog) {
         AlertDialog(
-            onDismissRequest = { /* don't dismiss by tapping outside */ },
+            onDismissRequest = {},
             title = { Text("Permission Needed") },
             text = {
-                Text("You've denied microphone permission several times. " +
-                        "Please enable it in app settings to record audio.")
+                Text(
+                    "You've denied microphone permission several times. " +
+                        "Please enable it in app settings to record audio."
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    // open app details in Settings
                     ctx.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                             data = Uri.fromParts("package", ctx.packageName, null)
                         }
                     )
                     showSettingsDialog = false
-                }) {
-                    Text("Open Settings")
-                }
+                }) { Text("Open Settings") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showSettingsDialog = false
-                }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showSettingsDialog = false }) { Text("Cancel") }
             }
         )
     }
 
+    RecordingScreenContent(
+        isRecording = isRecording,
+        onBack = onBack,
+        onStart = {
+            if (ContextCompat.checkSelfPermission(
+                    ctx, Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                startRecording(ctx, recordingsRoot) { path, startTime ->
+                    currentPath = path
+                    recordStartTime = startTime
+                    isRecording = true
+                }
+            } else {
+                micLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        },
+        onStop = {
+            val savedPath = MainActivity.nativeStopRecording()
+            val recordEndTime = System.currentTimeMillis()
+            val file = File(savedPath)
+            recorderVM.insert(
+                RecordingEntity(
+                    fileName = file.name,
+                    filePath = savedPath,
+                    createdAt = recordEndTime,
+                    duration = recordEndTime - recordStartTime,
+                    fileSize = file.length(),
+                    format = savedPath.substringAfterLast('.', "wav")
+                )
+            )
+            isRecording = false
+            Toast.makeText(ctx, "Saved to:\n$savedPath", Toast.LENGTH_LONG).show()
+            onRecordingFinished()
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RecordingScreenContent(
+    isRecording: Boolean,
+    onBack: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -135,62 +171,19 @@ fun RecordingScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
-                    onClick = {
-                        // if we already have permission, just start;
-                        // otherwise fire off the permission flow
-                        if (ContextCompat.checkSelfPermission(
-                                ctx, Manifest.permission.RECORD_AUDIO
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            startRecording(ctx, recordingsRoot) { path, startTime ->
-                                currentPath = path
-                                recordStartTime = startTime
-                                isRecording = true
-                            }
-                        } else {
-                            micLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
+                    onClick = onStart,
                     enabled = !isRecording
-                ) {
-                    Text("Start")
-                }
+                ) { Text("Start") }
 
                 Button(
-                    onClick = {
-                        // Stop native recorder
-                        val savedPath = MainActivity.nativeStopRecording()
-                        val recordEndTime = System.currentTimeMillis()
-
-                        // Build and save your entity
-                        val file = File(savedPath)
-                        val entity = RecordingEntity(
-                            fileName = file.name,
-                            filePath = savedPath,
-                            createdAt = recordEndTime,
-                            duration = recordEndTime - recordStartTime,
-                            fileSize = file.length(),
-                            format = savedPath.substringAfterLast('.', "wav")
-                        )
-                        recorderVM.insert(entity)
-
-                        isRecording = false
-                        Toast.makeText(ctx, "Saved to:\n$savedPath", Toast.LENGTH_LONG).show()
-                        onRecordingFinished()
-                    },
+                    onClick = onStop,
                     enabled = isRecording
-                ) {
-                    Text("Stop")
-                }
+                ) { Text("Stop") }
             }
         }
     }
 }
 
-/**
- * Helper function to start recording so we don't repeat the same lines
- * in two separate branches above.
- */
 private fun startRecording(
     ctx: Context,
     recordingsRoot: File,
@@ -198,12 +191,39 @@ private fun startRecording(
 ) {
     val fileName = "rec_${System.currentTimeMillis()}.wav"
     val path = File(recordingsRoot, fileName).absolutePath
-
     val res = MainActivity.nativeStartRecording(path)
     if (res == 0) {
         onStarted(path, System.currentTimeMillis())
         Toast.makeText(ctx, "Recording Started", Toast.LENGTH_SHORT).show()
     } else {
         Toast.makeText(ctx, "Start failed: $res", Toast.LENGTH_LONG).show()
+    }
+}
+
+// ── Previews ──────────────────────────────────────────────────────────────────
+
+@Preview(showBackground = true, name = "Recorder – idle")
+@Composable
+private fun RecordingScreenIdlePreview() {
+    AudioRecordingAppTheme {
+        RecordingScreenContent(
+            isRecording = false,
+            onBack = {},
+            onStart = {},
+            onStop = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Recorder – recording")
+@Composable
+private fun RecordingScreenRecordingPreview() {
+    AudioRecordingAppTheme {
+        RecordingScreenContent(
+            isRecording = true,
+            onBack = {},
+            onStart = {},
+            onStop = {}
+        )
     }
 }
