@@ -1,12 +1,10 @@
 package com.example.audiorecordingapp.presentaion.recording_listing
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -19,20 +17,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.audiorecordingapp.R
 import com.example.audiorecordingapp.data.local.entity.RecordingEntity
+import com.example.audiorecordingapp.ui.theme.AudioRecordingAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordListingScreen(
-    recordingListingVM:RecordingListingVM,
-    onStartRecording: () -> Unit
+    recordings: List<RecordingEntity>,
+    playingId: Long?,
+    onStartRecording: () -> Unit,
+    onPlay: (RecordingEntity) -> Unit,
+    onPause: () -> Unit
 ) {
-    val recordings by recordingListingVM.recordings.collectAsState()
-    val playingId by recordingListingVM.playingRecordingId.collectAsState()
-
-
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Recordings") })
@@ -42,7 +41,8 @@ fun RecordListingScreen(
                 Icon(
                     painter = painterResource(id = R.drawable.add),
                     contentDescription = "Add recording"
-                )            }
+                )
+            }
         },
         content = { padding ->
             if (recordings.isEmpty()) {
@@ -62,14 +62,10 @@ fun RecordListingScreen(
                 ) {
                     items(recordings) { recording ->
                         RecordingItem(
-                            recording,
+                            recording = recording,
                             isPlaying = (recording.id == playingId),
-                            onPlay = {
-                                recordingListingVM.playRecording(recording)
-                            },
-                            onPause = {
-                                recordingListingVM.pauseRecording()
-                            }
+                            onPlay = { onPlay(recording) },
+                            onPause = onPause
                         )
                     }
                 }
@@ -97,7 +93,6 @@ fun RecordingItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play / Pause button
             IconButton(onClick = { if (isPlaying) onPause() else onPlay() }) {
                 Icon(
                     painter = painterResource(
@@ -109,7 +104,6 @@ fun RecordingItem(
 
             Spacer(Modifier.width(8.dp))
 
-            // Info column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = recording.fileName,
@@ -156,11 +150,7 @@ private fun Long.toMinSeconds(): String {
 
 private fun Long.toReadableSize(): String {
     val kb = this / 1024
-    return if (kb < 1024) {
-        "${kb}KB"
-    } else {
-        "${(kb / 1024)}MB"
-    }
+    return if (kb < 1024) "${kb}KB" else "${kb / 1024}MB"
 }
 
 private fun Long.toFormattedDate(): String {
@@ -168,3 +158,79 @@ private fun Long.toFormattedDate(): String {
     return sdf.format(java.util.Date(this))
 }
 
+// ── Previews ──────────────────────────────────────────────────────────────────
+
+private val previewRecordings = listOf(
+    RecordingEntity(
+        id = 1L,
+        fileName = "rec_1715000000000.wav",
+        filePath = "/storage/music/rec_1715000000000.wav",
+        createdAt = 1715000000000L,
+        duration = 65_000L,
+        fileSize = 1_048_576L,
+        format = "wav"
+    ),
+    RecordingEntity(
+        id = 2L,
+        fileName = "rec_1714913600000.wav",
+        filePath = "/storage/music/rec_1714913600000.wav",
+        createdAt = 1714913600000L,
+        duration = 125_000L,
+        fileSize = 2_097_152L,
+        format = "wav"
+    )
+)
+
+@Preview(showBackground = true, name = "List – empty")
+@Composable
+private fun RecordListingScreenEmptyPreview() {
+    AudioRecordingAppTheme {
+        RecordListingScreen(
+            recordings = emptyList(),
+            playingId = null,
+            onStartRecording = {},
+            onPlay = {},
+            onPause = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "List – with recordings")
+@Composable
+private fun RecordListingScreenPopulatedPreview() {
+    AudioRecordingAppTheme {
+        RecordListingScreen(
+            recordings = previewRecordings,
+            playingId = 1L,
+            onStartRecording = {},
+            onPlay = {},
+            onPause = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "RecordingItem – idle")
+@Composable
+private fun RecordingItemIdlePreview() {
+    AudioRecordingAppTheme {
+        RecordingItem(
+            recording = previewRecordings.first(),
+            isPlaying = false,
+            onPlay = {},
+            onPause = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "RecordingItem – playing")
+@Composable
+private fun RecordingItemPlayingPreview() {
+    AudioRecordingAppTheme {
+        RecordingItem(
+            recording = previewRecordings.first(),
+            isPlaying = true,
+            onPlay = {},
+            onPause = {}
+        )
+    }
+}

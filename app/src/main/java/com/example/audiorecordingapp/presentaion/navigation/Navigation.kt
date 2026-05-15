@@ -1,6 +1,8 @@
 package com.example.audiorecordingapp.presentaion.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.*
@@ -27,26 +29,24 @@ fun AudioNavGraph(
         modifier = modifier
     ) {
         composable(Screen.Listing.route) {
-            val recordingListingVM:RecordingListingVM = hiltViewModel()
+            val vm: RecordingListingVM = hiltViewModel()
+            val recordings by vm.recordings.collectAsState()
+            val playingId by vm.playingRecordingId.collectAsState()
             RecordListingScreen(
-                recordingListingVM,
-                onStartRecording = {
-                    navController.navigate(Screen.Recorder.route)
-                }
+                recordings = recordings,
+                playingId = playingId,
+                onStartRecording = { navController.navigate(Screen.Recorder.route) },
+                onPlay = { vm.playRecording(it) },
+                onPause = { vm.pauseRecording() }
             )
         }
         composable(Screen.Recorder.route) {
-            val recorderVM:RecorderVM = hiltViewModel()
+            val recorderVM: RecorderVM = hiltViewModel()
             RecordingScreen(
-                recorderVM,
-                onBack = {
-                    navController.popBackStack()
-                },
-                onRecordingFinished = {
-                    navController.popBackStack()
-                }
+                recorderVM = recorderVM,
+                onBack = { navController.popBackStack() },
+                onRecordingFinished = { navController.popBackStack() }
             )
         }
     }
 }
-
