@@ -19,7 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 @Composable
@@ -63,8 +63,7 @@ fun AudioPermissionHandler(
                 // already have it
                 onGranted()
             }
-            // if they've denied once but not permanently, show rationale
-            shouldShowRequestPermissionRationale(
+            ActivityCompat.shouldShowRequestPermissionRationale(
                 context as Activity, Manifest.permission.RECORD_AUDIO
             ) -> {
                 showRationale = true
